@@ -1,7 +1,14 @@
+;;; j-console.el -*- lexical-binding: t; -*-
+;;; j-console.el --- Major mode for editing J programs
 
-;;; j-mode.el --- Major mode for editing J programs
 
+;; Copyright (C) 2021 Jeffrey Young
 ;; Copyright (C) 2012 Zachary Elliott
+;;
+;;
+;; Authors: Jeffrey Young <youngjef@oregonstate.edu>
+;; URL: http://github.com/zellio/j-mode
+;; Version: 1.1.2
 ;;
 ;; Authors: Zachary Elliott <ZacharyElliott1@gmail.com>
 ;; URL: http://github.com/zellio/j-mode
@@ -37,7 +44,7 @@
 (require 'comint)
 
 
-;; (defconst j-console-version "1.1.1"
+;; (defconst j-console-version "1.1.2"
 ;;   "`j-console' version")
 
 (defgroup j-console nil
@@ -69,6 +76,11 @@ Should be NIL if there is no file not the empty string"
   :type 'string
   :group 'j-console)
 
+(defvar-local j-console-previous-buffer nil
+  "Records the buffer to which `j-console-switch-back' should jump.
+   This is set by `j-console-create-session' or
+   `j-console-switch', and should otherwise be nil.")
+
 (defvar j-console-comint-input-filter-function nil
   "J mode specific mask for comint input filter function")
 
@@ -77,12 +89,6 @@ Should be NIL if there is no file not the empty string"
 
 (defvar j-console-comint-preoutput-filter-function nil
   "J mode specific mask for comint preoutput filter function")
-
-;; 'comint-preoutput-filter-functions
-;; (lambda ( output )
-;;   (if (string-match "^[ \r\n\t]+" output)
-;;       (concat "  " (replace-match "" nil t output))
-;;     output))))
 
 (defun j-console-create-session ()
   "Starts a comint session wrapped around the j-console-cmd"
@@ -113,12 +119,26 @@ Should be NIL if there is no file not the empty string"
   "Major mode for J inferior process.")
 
 ;;;###autoload
+(defun j-console-switch ()
+  "Switch to the interactive mode for this session."
+  (interactive)
+  (let ((initial-buffer (current-buffer))
+        (buffer (j-console-ensure-session)))
+    (with-current-buffer buffer
+      (unless (eq buffer (window-buffer))
+        (setq j-console-previous-buffer initial-buffer)
+        (switch-to-buffer-other-window buffer)))))
+
+;;;###autoload
 (defun j-console ()
   "Ensures a running j-console-cmd session and switches focus to
 the containing buffer"
   (interactive)
-  (switch-to-buffer-other-window (process-buffer (j-console-ensure-session)))
-  (inferior-j-mode))
+  (let ((initial-buffer (current-buffer)))
+    (switch-to-buffer-other-window (process-buffer (j-console-ensure-session)))
+    (inferior-j-mode)
+    (setq j-console-previous-buffer initial-buffer)
+    (j-console-switch-back)))
 
 (defun j-console-execute-region ( start end )
   "Sends current region to the j-console-cmd session and exectues it"
@@ -126,11 +146,13 @@ the containing buffer"
   (when (= start end)
     (error "Region is empty"))
   (let ((region (buffer-substring-no-properties start end))
-        (session (j-console-ensure-session)))
+        (session (j-console-ensure-session))
+        (initial-buffer (current-buffer)))
     (pop-to-buffer (process-buffer session))
     (goto-char (point-max))
     (insert (format "\n%s\n" region))
-    (comint-send-input)))
+    (comint-send-input)
+    (switch-to-buffer-other-window initial-buffer)))
 
 (defun j-console-execute-line ()
   "Sends current line to the j-console-cmd session and exectues it"
@@ -141,6 +163,13 @@ the containing buffer"
   "Sends current buffer to the j-console-cmd session and exectues it"
   (interactive)
   (j-console-execute-region (point-min) (point-max)))
+
+(defun j-console-switch-back ()
+  "Switch back to the buffer from which this interactive buffer was reached."
+  (interactive)
+  (if j-console-previous-buffer
+      (switch-to-buffer-other-window j-console-previous-buffer)
+    (message "No previouS buffer.")))
 
 (provide 'j-console)
 
