@@ -118,16 +118,6 @@ Should be NIL if there is no file not the empty string"
 (define-derived-mode inferior-j-mode comint-mode "Inferior J"
   "Major mode for J inferior process.")
 
-;;;###autoload
-(defun j-console-switch ()
-  "Switch to the interactive mode for this session."
-  (interactive)
-  (let ((initial-buffer (current-buffer))
-        (buffer (j-console-ensure-session)))
-    (with-current-buffer buffer
-      (unless (eq buffer (window-buffer))
-        (setq j-console-previous-buffer initial-buffer)
-        (switch-to-buffer-other-window buffer)))))
 
 ;;;###autoload
 (defun j-console ()
