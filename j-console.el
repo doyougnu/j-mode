@@ -7,7 +7,7 @@
 ;;
 ;;
 ;; Authors: Jeffrey Young <youngjef@oregonstate.edu>
-;; URL: http://github.com/zellio/j-mode
+;; URL: http://github.com/doyougnu/j-mode
 ;; Version: 1.1.2
 ;;
 ;; Authors: Zachary Elliott <ZacharyElliott1@gmail.com>
@@ -130,14 +130,23 @@ the containing buffer"
     (setq j-console-previous-buffer initial-buffer)
     (j-console-switch-back)))
 
+
+(defun j-flash-region (start end &optional timeout)
+  "Temporarily highlight region from start to end."
+  (let ((overlay (make-overlay start end)))
+    (overlay-put overlay 'face 'secondary-selection)
+    (run-with-timer (or timeout 0.2) nil 'delete-overlay overlay)))
+
 (defun j-console-execute-region ( start end )
   "Sends current region to the j-console-cmd session and exectues it"
   (interactive "r")
   (when (= start end)
     (error "Region is empty"))
-  (let ((region (buffer-substring-no-properties start end))
-        (session (j-console-ensure-session))
-        (initial-buffer (current-buffer)))
+  (let ((region         (buffer-substring-no-properties start end))
+        (session        (j-console-ensure-session))
+        (initial-buffer (current-buffer))
+        (text-prop      (get-text-property start end)))
+    (j-flash-region start end)
     (pop-to-buffer (process-buffer session))
     (goto-char (point-max))
     (insert (format "\n%s\n" region))
